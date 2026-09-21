@@ -1,0 +1,107 @@
+BRONZE SCHEMA
+
+-- CRM Order & Customer Data – Stores customer profiles and order transactions, including products, pricing, discounts, payment methods, order status, and sales channels.
+
+-- CRM Shipment & Returns Data – Tracks order fulfillment, including shipment details, delivery status, shipping costs, delays, returns, refunds, and inspection results.
+
+-- ERP Product, Department & Employee Data – Contains operational data for products and inventory, organizational departments, and employee information such as roles, salaries, managers, and employment status.
+
+
+DROP TABLE IF EXISTS bronze_order_details_crm;
+CREATE TABLE bronze_order_details_crm (
+	order_id VARCHAR (50),
+	order_date DATETIME,
+	customer_id VARCHAR (50),
+	employee_id VARCHAR (50),
+	product_name VARCHAR (100),
+	category VARCHAR (100),
+	quantity INT,
+	unit_price INT,
+	discount_pct FLOAT,
+	payment_method VARCHAR (100),
+	order_status VARCHAR (100),
+	sales_channel VARCHAR (100),
+	shipping_address VARCHAR (100),
+	order_note VARCHAR (100)
+);
+
+DROP TABLE IF EXISTS bronze_customer_details_crm;
+CREATE TABLE bronze_customer_details_crm (
+	customer_id VARCHAR (50),
+    first_name VARCHAR (50),
+    last_name VARCHAR (50),
+    email VARCHAR (100),
+    phone VARCHAR (50),
+    city VARCHAR (50),
+	region VARCHAR (50),
+    customer_type VARCHAR (50),
+    registration_date DATETIME
+);
+
+DROP TABLE IF EXISTS bronze_shipment_details_crm ;
+CREATE TABLE bronze_shipment_details_crm (
+	shipment_id VARCHAR (50),
+	order_id VARCHAR (50),
+	carrier VARCHAR (50),
+	tracking_number VARCHAR (50),
+	ship_date DATETIME,
+	estimated_delivery DATETIME,
+	actual_delivery DATETIME ,
+	shipping_cost FLOAT,
+	weight_kg FLOAT,
+	shipment_status VARCHAR (50),
+	destination_city VARCHAR (50),
+	delivery_attempts VARCHAR (50),
+	delay_reason VARCHAR (50)
+);
+
+DROP TABLE IF EXISTS bronze_returns_crm ;
+CREATE TABLE bronze_returns_crm (
+	return_id VARCHAR (50),
+	order_id VARCHAR (50),
+	customer_id VARCHAR (50),
+	return_date DATETIME,
+	return_reason VARCHAR (50),
+	refund_amount FLOAT,
+	return_status VARCHAR (50),
+	inspection_result VARCHAR (50)
+);
+
+DROP TABLE IF EXISTS bronze_products_erp ;
+CREATE TABLE bronze_products_erp (
+	product_id VARCHAR (50),
+	product_name VARCHAR (50),
+	category VARCHAR (50),
+	supplier VARCHAR (50),
+	unit_cost FLOAT,
+	reorder_level VARCHAR (50),
+	stock_quantity INT
+);
+
+DROP TABLE IF EXISTS bronze_departments_erp ;
+CREATE TABLE bronze_departments_erp (
+	department_id VARCHAR (50),
+    department_name VARCHAR (50),
+    location VARCHAR (50),
+    budget INT
+);
+
+DROP TABLE IF EXISTS bronze_employee_details_erp ;
+CREATE TABLE bronze_employee_details_erp (
+	employee_id VARCHAR (50),
+	first_name VARCHAR (50),
+	last_name VARCHAR (50),
+	gender VARCHAR (50),
+	department VARCHAR (50),
+	job_title VARCHAR (50),
+	hire_date DATETIME,
+	salary VARCHAR (50),
+	manager_id VARCHAR (50),
+	employment_status VARCHAR (50),
+	email VARCHAR (50)
+);
+
+
+
+
+
