@@ -1,1 +1,101 @@
+Silver Layer Schema
 
+-- Data Standardization – Creates structured Silver tables based on the Bronze layer, with refined data types such as DATE, DATETIME, INT, and FLOAT to provide more consistent and usable data.
+
+-- CRM Data Preparation – Organizes cleaned customer, order, shipment, and returns data into dedicated Silver tables, preparing the data for further transformation, analysis, and reporting.
+
+-- ERP Data Preparation – Structures product, department, and employee information into Silver tables, creating a standardized foundation for business analysis and integration with other datasets.
+
+DROP TABLE IF EXISTS silver_order_details_crm;
+CREATE TABLE silver_order_details_crm (
+	order_id VARCHAR (50),
+	order_date DATETIME,
+	customer_id VARCHAR (50),
+	employee_id VARCHAR (50),
+	product_name VARCHAR (100),
+	category VARCHAR (100),
+	quantity INT ,
+	unit_price INT,
+	discount_pct FLOAT,
+	payment_method VARCHAR (100),
+	order_status VARCHAR (100),
+	sales_channel VARCHAR (100),
+	shipping_address VARCHAR (100),
+	order_note VARCHAR (100)
+);
+
+DROP TABLE IF EXISTS silver_customer_details_crm;
+CREATE TABLE silver_customer_details_crm (
+	customer_id VARCHAR (50),
+    first_name VARCHAR (50),
+    last_name VARCHAR (50),
+    email VARCHAR (100),
+    phone VARCHAR (50),
+    city VARCHAR (50),
+	region VARCHAR (50),
+    customer_type VARCHAR (50),
+    registration_date DATE
+);
+
+DROP TABLE IF EXISTS silver_shipment_details_crm ;
+CREATE TABLE silver_shipment_details_crm (
+	shipment_id VARCHAR (50),
+	order_id VARCHAR (50),
+	carrier VARCHAR (50),
+	tracking_number VARCHAR (50),
+	ship_date DATETIME,
+	estimated_delivery DATE ,
+	actual_delivery DATE ,
+	shipping_cost FLOAT,
+	weight_kg FLOAT,
+	shipment_status VARCHAR (50),
+	destination_city VARCHAR (50),
+	delivery_attempts INT,
+	delay_reason VARCHAR (50)
+);
+
+DROP TABLE IF EXISTS silver_returns_crm ;
+CREATE TABLE silver_returns_crm (
+	return_id VARCHAR (50),
+	order_id VARCHAR (50),
+	customer_id VARCHAR (50),
+	return_date DATE,
+	return_reason VARCHAR (50),
+	refund_amount FLOAT,
+	return_status VARCHAR (50),
+	inspection_result VARCHAR (50)
+);
+
+DROP TABLE IF EXISTS silver_products_erp ;
+CREATE TABLE silver_products_erp (
+	product_id VARCHAR (50),
+	product_name VARCHAR (50),
+	category VARCHAR (50),
+	supplier VARCHAR (50),
+	unit_cost FLOAT,
+	reorder_level VARCHAR (50),
+	stock_quantity INT
+);
+
+DROP TABLE IF EXISTS silver_departments_erp ;
+CREATE TABLE silver_departments_erp (
+	department_id VARCHAR (50),
+    department_name VARCHAR (50),
+    location VARCHAR (50),
+    budget INT
+);
+
+DROP TABLE IF EXISTS silver_employee_details_erp ;
+CREATE TABLE silver_employee_details_erp (
+	employee_id VARCHAR (50),
+	first_name VARCHAR (50),
+	last_name VARCHAR (50),
+	gender VARCHAR (50),
+	department VARCHAR (50),
+	job_title VARCHAR (50),
+	hire_date DATE,
+	salary VARCHAR (50),
+	manager_id VARCHAR (50),
+	employment_status VARCHAR (50),
+	email VARCHAR (50)
+);
