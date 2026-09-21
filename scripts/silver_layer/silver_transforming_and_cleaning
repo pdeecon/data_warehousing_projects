@@ -1,0 +1,381 @@
+Silver Layer Data Transformation 
+
+-- Customer Data Cleaning – Customer names, cities, regions, and customer types are trimmed and standardized to improve consistency across records.
+
+-- Contact Information Standardization – Missing emails and phone numbers are replaced with appropriate default values, while Philippine phone numbers beginning with 0 are converted to the +63 format.
+
+-- Employee Data Standardization – Employee information is cleaned by standardizing gender values, job titles, salaries, manager IDs, employment status, and email fields.
+
+-- Date Standardization – Date fields such as registration dates, hire dates, return dates, and delivery dates are converted into appropriate DATE formats for consistent analysis.
+
+-- Order Data Cleaning – Order records are standardized by handling missing quantities, prices, discounts, payment methods, order statuses, sales channels, addresses, and order notes.
+
+-- Product Categorization – Products are assigned to standardized categories such as Office Furniture, Electronics, Computer Accessories, Mobile Devices, and Networking based on product names.
+
+-- Product Price Standardization – Product prices in the order data are mapped to predefined values based on the product name to maintain consistent pricing information.
+
+-- Returns Data Transformation – Return reasons, refund amounts, return statuses, and inspection results are cleaned and standardized to provide a consistent view of the return process.
+
+-- Shipment Data Transformation – Shipment information is cleaned by standardizing carrier names and tracking numbers, converting delivery dates, handling missing shipping costs and weights, and deriving shipment statuses such as Delivered, Delayed, In Transit, Preparing, and Returned.
+
+-- Centralized Transformation Process – All CRM and ERP transformations are grouped into the inserting_silver_layer() stored procedure, providing a reusable process for moving cleaned and standardized data from the Bronze layer into the Silver layer.
+
+
+-- INSERTING CLEAN DATA TO SILVER LAYER
+DELIMITER //
+CREATE PROCEDURE inserting_silver_layer()
+BEGIN
+-- INSERTING TRANSFORMED AND CLEAN CUSTOMER DETAILS TABLE 
+INSERT INTO silver_customer_details_crm 
+	(
+		customer_id,
+		first_name ,
+		last_name ,
+		email,
+		phone,
+		city,
+		region,
+		customer_type ,
+		registration_date 
+    )
+SELECT
+	customer_id ,
+    TRIM(first_name) AS first_name ,
+    TRIM(last_name) AS last_name ,
+    COALESCE(NULLIF(TRIM(email), ''), 'n/a') AS email ,
+    CASE 
+		WHEN LEFT(TRIM(phone), 1) = '0' THEN CONCAT('+63 ', SUBSTRING(TRIM(phone), 2))
+        WHEN LEFT(TRIM(phone), 3) = '+63 ' THEN TRIM(phone)
+        WHEN phone = '' THEN 'n/a'
+    ELSE TRIM(phone) END AS phone,
+    COALESCE(NULLIF(CONCAT(UPPER(LEFT(TRIM(city), 1)), LOWER(SUBSTRING(TRIM(city), 2))),'' ),'n/a') AS city ,
+    COALESCE(NULLIF(CONCAT(UPPER(LEFT(TRIM(region), 1)), LOWER(SUBSTRING(TRIM(region), 2))),'' ),'n/a') AS region ,
+    COALESCE(NULLIF(CONCAT(UPPER(LEFT(TRIM(customer_type), 1)), LOWER(SUBSTRING(TRIM(customer_type), 2))),'' ),'n/a') AS customer_type ,
+    CAST(registration_date AS DATE) AS registration_date
+FROM bronze_customer_details_crm ;
+
+
+-- INSERTING TRANSFORMED AND CLEAN DEPARTMENT DETAILS TABLE 
+INSERT INTO silver_departments_erp
+	(
+		department_id,
+        department_name,
+        location,
+        budget
+    )
+ SELECT
+	department_id,
+    TRIM(department_name) AS department_name ,
+    TRIM(location) AS location,
+    COALESCE(budget, 0) AS budget
+ FROM bronze_departments_erp;
+ 
+
+-- INSERTING TRANSFORMED AND CLEAN EMPLOYEE DETAILS TABLE 
+INSERT INTO silver_employee_details_erp
+	(
+		employee_id ,
+		first_name ,
+		last_name ,
+		gender ,
+		department ,
+		job_title ,
+		hire_date ,
+		salary ,
+		manager_id ,
+		employment_status ,
+		email 
+	)
+SELECT
+	employee_id ,
+	TRIM(first_name) AS first_name ,
+    TRIM(last_name) AS last_name ,	last_name ,
+	CASE
+		WHEN gender = 'M' THEN 'Male'
+        WHEN gender = 'm' THEN 'Male'
+        WHEN gender = 'F' THEN 'Female'
+        WHEN gender = 'f' THEN 'Female'
+        WHEN gender = '' THEN 'n/a'
+	ELSE gender END AS gender,
+    CASE 
+		 WHEN job_title IS NULL OR TRIM(job_title) = '' THEN 'Unknown'
+		 ELSE CONCAT(
+		 UPPER(LEFT(SUBSTRING_INDEX(TRIM(job_title), ' ', 1), 1)),
+			LOWER(SUBSTRING(SUBSTRING_INDEX(TRIM(job_title), ' ', 1), 2)),
+			 ' ',
+			 UPPER(LEFT(SUBSTRING_INDEX(TRIM(job_title), ' ', -1), 1)),
+			 LOWER(SUBSTRING(SUBSTRING_INDEX(TRIM(job_title), ' ', -1), 2))
+	) END AS job_title,
+	CAST( hire_date AS DATE) AS hire_date,
+	COALESCE(NULLIF(TRIM(salary), ''), 0 ) AS salary,
+	COALESCE(NULLIF(TRIM(manager_id), ''), 'Unknown') AS manager_id, 
+	COALESCE(NULLIF(TRIM(employment_status), ''), 'Unknown') AS employment_status, 
+	COALESCE(NULLIF(TRIM(email), ''), 'n/a') AS email 
+FROM bronze_employee_details_erp;
+
+
+-- INSERTING TRANSFORMED AND CLEAN ORDER DETAILS TABLE 
+INSERT INTO silver_order_details_crm
+	(
+		order_id ,
+		order_date ,
+		customer_id ,
+		employee_id ,
+		product_name ,
+		category,
+		quantity,
+		unit_price ,
+		discount_pct ,
+		payment_method ,
+		order_status ,
+		sales_channel ,
+		shipping_address ,
+		order_note 
+    )
+SELECT
+	order_id ,
+	order_date ,
+	customer_id ,
+	employee_id ,
+	product_name ,
+	category,
+	quantity,
+	CASE
+		WHEN product_name = 'Laptop' THEN  29999
+        WHEN product_name = 'Monitor' THEN 9999
+        WHEN product_name = 'Keyboard' THEN 2499
+        WHEN product_name = 'Mouse' THEN 1499
+        WHEN product_name = 'Printer' THEN 3499
+        WHEN product_name = 'Office chair' THEN 4999
+        WHEN product_name = 'Desk' THEN 19999
+        WHEN product_name = 'Headset' THEN 1499
+        WHEN product_name = 'Webcam' THEN 1499
+        WHEN product_name = 'Tablet' THEN 8999
+        WHEN product_name = 'Smartphone' THEN 12999
+        WHEN product_name = 'Router' THEN 1499
+        WHEN product_name = 'External drive' THEN  999
+        WHEN product_name = 'Projector' THEN  4000
+        WHEN product_name = 'UPS' THEN  4999
+	ELSE unit_price END AS unit_price,
+	discount_pct ,
+	payment_method ,
+	order_status ,
+	sales_channel,
+	shipping_address ,
+	order_note 
+FROM    
+(   
+SELECT
+	order_id ,
+	order_date,
+	customer_id ,
+	employee_id ,
+	CASE 
+		WHEN product_name IS NULL OR TRIM(product_name) = '' THEN 'Unknown'
+        WHEN LENGTH(TRIM(product_name)) <= 3 THEN UPPER(TRIM(product_name))
+		ELSE CONCAT(
+					UPPER(LEFT(TRIM(product_name), 1)),
+					LOWER(SUBSTRING(TRIM(product_name), 2)))END AS product_name,
+    CASE
+		WHEN UPPER(TRIM(product_name)) IN ('OFFICE CHAIR','DESK' ) THEN 'Office Furniture'
+        WHEN UPPER(TRIM(product_name)) IN ('EXTERNAL DRIVE', 'PROJECTOR' , 'UPS' ) THEN 'Electronics'
+        WHEN UPPER(TRIM(product_name)) IN ('MONITOR', 'KEYBOARD' , 'MOUSE' , 'PRINTER' ,'HEADSET' ,'WEBCAM' ) THEN 'Computer Accesossories'
+        WHEN UPPER(TRIM(product_name)) IN ('LAPTOP', 'TABLET' , 'SMARTPHONE' ) THEN 'Mobile Devices'
+        WHEN UPPER(TRIM(product_name)) = 'ROUTER' THEN 'Networking'
+		WHEN product_name IS NULL OR TRIM(product_name) = '' THEN 'Unknown'
+		ELSE CONCAT(UPPER(LEFT(TRIM(category), 1)), LOWER(SUBSTRING(TRIM(category), 2)))
+	 END AS category,
+	COALESCE(unit_price, 0) AS unit_price,
+    COALESCE(quantity, 0) AS quantity,
+	COALESCE(discount_pct , 0 ) AS discount_pct ,
+    CASE
+		WHEN payment_method IS NULL OR TRIM(payment_method) = '' THEN 'n/a'
+		WHEN UPPER(TRIM(payment_method)) = 'PAYPAL' THEN 'PayPal'
+        WHEN UPPER(TRIM(payment_method)) = 'GCASH' THEN 'GCash'
+        WHEN UPPER(TRIM(payment_method)) = 'CASH' THEN 'Cash'
+        ELSE CONCAT(
+		 UPPER(LEFT(SUBSTRING_INDEX(TRIM(payment_method), ' ', 1), 1)),
+			LOWER(SUBSTRING(SUBSTRING_INDEX(TRIM(payment_method), ' ', 1), 2)),
+			 ' ',
+			 UPPER(LEFT(SUBSTRING_INDEX(TRIM(payment_method), ' ', -1), 1)),
+			 LOWER(SUBSTRING(SUBSTRING_INDEX(TRIM(payment_method), ' ', -1), 2))
+	) END AS payment_method,
+    CASE
+		WHEN order_status IS NULL OR TRIM(order_status) = '' THEN 'Unknown'
+		WHEN UPPER(TRIM(order_status)) = 'DELIVERED' THEN 'Delivered'
+        WHEN UPPER(TRIM(order_status)) = 'CANCELLED' THEN 'Canceled'
+        WHEN UPPER(TRIM(order_status)) = 'PENDING' THEN 'Pending'
+        WHEN UPPER(TRIM(order_status)) = 'SHIPPED' THEN 'Shipped'
+        WHEN UPPER(TRIM(order_status)) = 'RETURNED' THEN 'Returned'
+        WHEN UPPER(TRIM(order_status)) = 'DELIVERED' THEN 'Delivered'
+        WHEN UPPER(TRIM(order_status)) = 'PROCESSING' THEN 'Processing'
+	ELSE order_status END AS order_status,
+    CASE
+		WHEN sales_channel IS NULL OR TRIM(sales_channel) = '' THEN 'Unknown'
+		WHEN UPPER(TRIM(sales_channel)) = 'STORE' THEN 'Store'
+        WHEN UPPER(TRIM(sales_channel)) = 'ONLINE' THEN 'Online'
+        WHEN UPPER(TRIM(sales_channel)) = 'MARKETPLACE' THEN 'Marketplace'
+        ELSE sales_channel END AS sales_channel,
+	COALESCE(NULLIF(TRIM(shipping_address), ''), 'Warehouse') AS shipping_address,
+    CASE
+		WHEN TRIM(REPLACE(REPLACE(COALESCE(order_note, ''), CHAR(13), ''), CHAR(10), '')) = '' THEN 'Unknown'
+        WHEN UPPER(TRIM(order_note)) = 'URGENT' THEN 'Urgent'
+        WHEN UPPER(TRIM(order_note)) = 'GIFT ORDER' THEN 'Gift Order'
+        WHEN UPPER(TRIM(order_note)) = 'Deliver after 5pm' THEN 'Deliver after 5pm'
+        WHEN UPPER(TRIM(order_note)) = 'Call Customer' THEN 'Call Customer'
+	ELSE order_note END AS order_note
+FROM bronze_order_details_crm
+) AS t ;
+
+
+-- INSERTING TRANSFORMED AND CLEAN PRODUCT DETAILS TABLE 
+INSERT INTO silver_products_erp
+	(
+    product_id ,
+	product_name ,
+	category ,
+	supplier ,
+	unit_cost ,
+	reorder_level ,
+	stock_quantity 
+    )
+SELECT
+	product_id ,
+	TRIM(product_name) AS product_name,
+    CASE
+		WHEN UPPER(TRIM(product_name)) IN ('OFFICE CHAIR','DESK' ) THEN 'Office Furniture'
+        WHEN UPPER(TRIM(product_name)) IN ('EXTERNAL DRIVE', 'PROJECTOR' , 'UPS' ) THEN 'Electronics'
+        WHEN UPPER(TRIM(product_name)) IN ('MONITOR', 'KEYBOARD' , 'MOUSE' , 'PRINTER' ,'HEADSET' ,'WEBCAM' ) THEN 'Computer Accesossories'
+        WHEN UPPER(TRIM(product_name)) IN ('LAPTOP', 'TABLET' , 'SMARTPHONE' ) THEN 'Mobile Devices'
+        WHEN UPPER(TRIM(product_name)) = 'ROUTER' THEN 'Networking'
+		WHEN product_name IS NULL OR TRIM(product_name) = '' THEN 'Unknown'
+		ELSE category END AS category,
+	TRIM(supplier) AS supplier ,
+	unit_cost ,
+	COALESCE(NULLIF(reorder_level ,'') , 0) AS reorder_level ,
+	stock_quantity 
+FROM bronze_products_erp;
+
+
+-- INSERTING TRANSFORMED AND CLEAN RETURN DETAILS TABLE 
+INSERT INTO silver_returns_crm
+	(
+		return_id ,
+		order_id ,
+		customer_id ,
+		return_date ,
+		return_reason ,
+		refund_amount ,
+		return_status ,
+		inspection_result 
+    )
+SELECT
+	return_id ,
+	order_id ,
+	customer_id ,
+	return_date ,
+	return_reason ,
+	refund_amount ,
+	return_status ,
+	CASE 
+		WHEN UPPER(TRIM(return_status)) = 'REQUESTED' THEN 'On Going'
+        WHEN UPPER(TRIM(return_status)) = 'APPROVED' THEN 'On Going'
+        WHEN UPPER(TRIM(return_status)) = 'COMPLETED' THEN 'Passed'
+        WHEN UPPER(TRIM(return_status)) = 'PENDING' THEN 'Not inspected'
+        WHEN UPPER(TRIM(return_status)) = 'REJECTED' THEN 'Failed'
+        WHEN inspection_result IS NULL OR TRIM(inspection_result) = '' THEN 'Unknown'
+	ELSE CONCAT(UPPER(LEFT(TRIM(inspection_result), 1)), LOWER(SUBSTRING(TRIM(inspection_result), 2))) END AS inspection_result 
+FROM (
+SELECT
+	return_id ,
+	order_id ,
+	customer_id ,
+	CAST(return_date AS DATE) AS return_date ,
+	COALESCE(NULLIF(CONCAT(UPPER(LEFT(TRIM(return_reason), 1)), LOWER(SUBSTRING(TRIM(return_reason), 2))),'' ),'n/a') AS return_reason ,
+	COALESCE(refund_amount, 0) AS refund_amount,
+    CASE 
+		WHEN UPPER(TRIM(inspection_result)) = 'PASSED' THEN 'Completed'
+        WHEN UPPER(TRIM(inspection_result)) = 'NOT INSPECTED' THEN 'Pending'
+        WHEN UPPER(TRIM(inspection_result)) = 'FAILED' THEN 'Rejected'
+        WHEN return_status IS NULL OR TRIM(return_status) = '' THEN 'Unknown'
+	ELSE CONCAT(UPPER(LEFT(TRIM(return_status), 1)), LOWER(SUBSTRING(TRIM(return_status), 2))) END AS return_status ,
+    inspection_result
+FROM bronze_returns_crm
+) AS T;
+
+-- INSERTING TRANSFORMED AND CLEAN SHIPMENT DETAILS TABLE
+INSERT INTO silver_shipment_details_crm
+	(
+    shipment_id ,
+	order_id ,
+	carrier ,
+	tracking_number,
+	ship_date ,
+	estimated_delivery ,
+	actual_delivery ,
+	shipping_cost ,
+	weight_kg ,
+	shipment_status ,
+	destination_city ,
+	delivery_attempts ,
+	delay_reason 
+    )
+SELECT
+	shipment_id ,
+	order_id ,
+    CASE
+		WHEN UPPER(TRIM(carrier)) = 'DHL' THEN 'DHL'
+		WHEN UPPER(TRIM(carrier)) = 'NINJA VAN' THEN 'Ninja Van'
+        WHEN UPPER(TRIM(carrier)) = 'JRS EXPRESS' THEN 'JRS Express'
+        WHEN UPPER(TRIM(carrier)) = 'FEDEX' THEN 'FedEx'
+        WHEN UPPER(TRIM(carrier)) = '2GO' THEN '2GO'
+        WHEN UPPER(TRIM(carrier)) = 'LBC' THEN 'LBC'
+        WHEN UPPER(TRIM(carrier)) = 'J&T EXPRESS' THEN 'J&T Express'
+		WHEN carrier IS NULL OR TRIM(carrier) = '' THEN 'Unknown'
+	ELSE carrier END AS carrier,
+    CASE
+		WHEN tracking_number IS NULL OR TRIM(tracking_number) = '' THEN 'n/a'
+		WHEN TRIM(tracking_number) NOT LIKE 'TRK%' THEN CONCAT('TRK', TRIM(tracking_number))
+	ELSE tracking_number END AS tracking_number ,
+	ship_date ,
+	CAST(estimated_delivery AS DATE) AS estimated_delivery ,
+	CAST(actual_delivery AS DATE) AS actual_delivery ,
+	COALESCE(shipping_cost , 0) AS shipping_cost ,
+	COALESCE(weight_kg , 0) AS weight_kg ,
+    CASE
+		WHEN actual_delivery IS NULL AND LOWER(TRIM(delay_reason)) = 'customer unavailable' THEN 'Returned'
+		WHEN ship_date AND actual_delivery IS NULL THEN 'Preparing'
+		WHEN actual_delivery IS NULL THEN 'In Transit'
+		WHEN estimated_delivery < actual_delivery THEN 'Delayed'
+        WHEN estimated_delivery > actual_delivery THEN 'Delivered'
+        WHEN estimated_delivery = actual_delivery THEN 'Out for Delivery'
+        ELSE 'Lost' END AS shipment_status,
+    COALESCE(NULLIF(CONCAT(UPPER(LEFT(TRIM(destination_city), 1)), LOWER(SUBSTRING(TRIM(destination_city), 2))),'' ),'n/a') AS destination_city, 
+    COALESCE(NULLIF(delivery_attempts ,'') , 0) AS delivery_attempts ,
+    CASE
+		WHEN delay_reason IS NULL OR TRIM(delay_reason) = '' THEN 'n/a'
+		WHEN UPPER(TRIM(delay_reason)) = 'ADDRESS ISSUE' THEN 'Address Issue'
+        WHEN UPPER(TRIM(delay_reason)) = 'WEATHER' THEN 'Weather'
+        WHEN UPPER(TRIM(delay_reason)) = 'WAREHOUSE DELAY' THEN 'Warehouse Delay'
+        WHEN UPPER(TRIM(delay_reason)) = 'CARRIER BACKLOG' THEN 'Carrier Backlog'
+        WHEN UPPER(TRIM(delay_reason)) = 'CUSTOMER UNAVAILABLE' THEN 'Customer Unavailable'
+	ELSE delay_reason END AS delay_reason
+FROM bronze_shipment_details_crm;
+
+
+COMMIT;
+END //
+
+DELIMITER ;
+
+
+
+
+
+
+
+
+
+
+
+
