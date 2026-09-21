@@ -1,0 +1,114 @@
+-- Data Quality Checks Performed
+
+-- 1. Duplicate Primary Keys
+
+-- Identifies duplicate customer or employee IDs.
+-- Ensures key fields remain unique.
+
+-- 2. NULL Value Checks
+
+-- Identifies records where required fields contain NULL values.
+-- Helps detect incomplete records.
+
+-- 3. Unwanted Spaces
+
+-- Detects leading and trailing spaces using TRIM().
+-- Helps prevent inconsistent text values.
+
+-- 4. Value Standardization
+
+-- Uses UPPER() and TRIM() to standardize categorical values.
+-- Helps identify variations such as returned, Returned, and RETURNED.
+
+-- 5. Date Validation
+
+-- Checks for logically inconsistent dates.
+-- Example: an estimated delivery date occurring after the actual delivery date.
+
+-- 6. Blank and Hidden Values
+
+-- Uses LENGTH() and HEX() to investigate fields that may appear empty but contain spaces or hidden characters.
+
+-- 7. Category Analysis
+
+-- Groups categorical values and counts their frequency.
+-- Helps identify inconsistent or unexpected categories.
+
+-- 8. Numerical Validation
+
+-- Calculates statistics such as average unit cost by product category.
+-- Helps identify unusual values and understand the distribution of the data.
+
+-- 9. Empty String Checks
+
+-- Identifies fields that contain blank strings rather than NULL values.
+-- Example: product names containing '' or only whitespace.
+
+-- CHECKING IF THERE ARE DUPLICATES IN PRIMARY KEY
+SELECT 
+	customer_id,
+	COUNT(*)
+FROM bronze_customer_details_crm
+GROUP BY customer_id
+HAVING COUNT(*) > 1
+
+-- CHECKING IF THERES A NULL VALUES
+SELECT 
+	*
+FROM bronze_employee_details_erp
+WHERE employee_id IS NULL
+
+-- CHECKING IF THERE ARE UNWANTED SPACES
+SELECT department
+FROM bronze_employee_details_erp
+WHERE department != TRIM(department)
+
+-- TO CHECK THE VALUE OF EACH COLUMN
+SELECT
+	UPPER(TRIM(return_status)) AS return_status,
+	count(*)
+FROM bronze_returns_crm
+GROUP BY UPPER(TRIM(return_status))
+
+-- CHECKING IF THERES A ERROR ON DATES COLUMN
+SELECT
+	*
+FROM bronze_shipment_details_crm
+WHERE estimated_delivery > actual_delivery
+
+
+-- CHECKING NULL VALUES OR BLANK VALUES ERROR
+SELECT 
+    order_note,
+    LENGTH(order_note) AS length,
+    HEX(order_note) AS hex_value
+FROM bronze_order_details_crm;
+
+-- CHECKING WHAT CATEGORY HAVE GROUP BY
+SELECT
+	UPPER(TRIM(delay_reason)) AS delay_reason,
+	COUNT(*)
+FROM bronze_shipment_details_crm
+GROUP BY delay_reason
+
+-- CHECKING AVERAGE OF UNIT COST PER CATEGORY
+SELECT
+    UPPER(TRIM(category)) AS category,
+    AVG (unit_cost) OVER ( PARTITION BY UPPER(TRIM(category)) ORDER BY unit_cost DESC ) AS average_per_category
+FROM bronze_products_erp
+
+-- CHECKING THE ROW THAT DONT HAVE VALUE BUT DOESNT APPEAR AS NULL
+SELECT
+	TRIM(product_name) AS product_name,
+	category,
+	unit_price
+FROM bronze_order_details_crm
+WHERE TRIM(product_name) = ''
+
+
+
+
+
+
+
+
