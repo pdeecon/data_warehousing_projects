@@ -1,0 +1,135 @@
+Bronze Layer Data Loading
+
+-- Data Ingestion & Refresh – Truncates the existing Bronze tables and reloads data from CRM and ERP CSV source files using MySQL LOAD DATA INFILE, ensuring the Bronze layer contains the latest source data.
+
+-- Source-to-Table Mapping – Loads data from customer, orders, returns, shipments, departments, employees, and products CSV files into their corresponding Bronze tables while skipping CSV headers and handling different file formats and line endings.
+
+-- Basic Data Handling – Converts empty values to NULL for selected numeric and date fields using NULLIF() and TRIM(), helping prevent invalid or empty source values from being loaded as actual data.
+
+	-- Loading the data to bronze customer table
+    TRUNCATE TABLE bronze_customer_details_crm;
+	LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/source_crm/customer_details_crm.csv'
+	INTO TABLE bronze_customer_details_crm
+	FIELDS TERMINATED BY ','
+	ENCLOSED BY '"'
+	LINES TERMINATED BY '\r\n'
+	IGNORE 1 LINES;
+    
+    -- Loading the data to bronze order table
+	TRUNCATE TABLE bronze_order_details_crm;
+	LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/source_crm/order_details_crm.csv'
+	INTO TABLE bronze_order_details_crm
+	FIELDS TERMINATED BY ','
+	ENCLOSED BY '"'
+	LINES TERMINATED BY '\n'
+	IGNORE 1 ROWS
+	(
+		order_id ,
+		order_date ,
+		customer_id  ,
+		employee_id ,
+		product_name ,
+		category ,
+		@quantity ,
+		@unit_price ,
+		@discount_pct ,
+		payment_method,
+		order_status ,
+		sales_channel ,
+		shipping_address ,
+		order_note
+	)
+	SET
+		discount_pct = NULLIF(@discount_pct, ''),
+		quantity = NULLIF(@quantity, ''),
+		unit_price = NULLIF(@unit_price, '');
+	
+    
+    -- Loading the data to bronze returns table
+	TRUNCATE TABLE bronze_returns_crm;
+	LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/source_crm/return_crm.csv'
+	INTO TABLE bronze_returns_crm
+	FIELDS TERMINATED BY ','
+	ENCLOSED BY '"'
+	LINES TERMINATED BY '\r\n'
+	IGNORE 1 LINES
+	(
+		return_id ,
+		order_id ,
+		customer_id ,
+		return_date ,
+		return_reason ,
+		@refund_amount ,
+		return_status,
+		inspection_result
+	)
+	SET
+		refund_amount = NULLIF(@refund_amount, '') ;
+
+
+	-- Loading the data to bronze shipments table
+	TRUNCATE TABLE bronze_shipment_details_crm;
+	LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/source_crm/shipment_details_crm.csv'
+	INTO TABLE bronze_shipment_details_crm
+	FIELDS TERMINATED BY ','
+	ENCLOSED BY '"'
+	LINES TERMINATED BY '\r\n'
+	IGNORE 1 LINES 
+	(
+		shipment_id,
+		order_id,
+		carrier,
+		tracking_number,
+		ship_date,
+		@estimated_delivery,
+		@actual_delivery,
+		@shipping_cost,
+		@weight_kg,
+		shipment_status,
+		destination_city,
+		delivery_attempts,
+		delay_reason
+	)
+	SET 
+		estimated_delivery = NULLIF(TRIM(@estimated_delivery), ''),
+		actual_delivery = NULLIF(TRIM(@actual_delivery), ''),
+		shipping_cost = NULLIF(TRIM(@shipping_cost), ''),
+		weight_kg = NULLIF(TRIM(@weight_kg), '');
+
+
+	-- Loading the data to bronze deparments table
+	TRUNCATE TABLE bronze_departments_erp;
+	LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/source_erp/departments_erp.csv'
+	INTO TABLE bronze_departments_erp
+	FIELDS TERMINATED BY ','
+	ENCLOSED BY '"'
+	LINES TERMINATED BY '\r\n'
+	IGNORE 1 LINES
+		(	department_id,
+			department_name, 
+			location, 
+			@budget)
+	SET budget = NULLIF(TRIM(@budget), '');
+
+	-- Loading the data to bronze employee details table
+	TRUNCATE TABLE bronze_employee_details_erp;
+	LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/source_erp/employee_details_erp.csv'
+	INTO TABLE bronze_employee_details_erp
+	FIELDS TERMINATED BY ','
+	ENCLOSED BY '"'
+	LINES TERMINATED BY '\r\n'
+	IGNORE 1 LINES;
+	
+    
+    -- Loading the data to bronze products table
+	TRUNCATE TABLE bronze_products_erp;
+	LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/source_erp/products_erp.csv'
+	INTO TABLE bronze_products_erp
+	FIELDS TERMINATED BY ','
+	ENCLOSED BY '"'
+	LINES TERMINATED BY '\r\n'
+	IGNORE 1 LINES;
+
+
+
+
