@@ -1,0 +1,116 @@
+GOLD LAYER
+
+-- Business-Ready Data Model – Creates customer, product, and employee dimensions alongside a sales fact table, providing a structured foundation for analytics and reporting.
+
+-- Sales Metrics & KPIs – Calculates key measures such as gross sales, discounts, net sales, total orders, quantity sold, and average order value.
+
+-- Aggregated Sales Analysis – Provides daily sales summaries by date, product category, and sales channel, making the data ready for dashboards and business performance analysis.
+
+-- GOLD LAYER
+
+CREATE VIEW gold_dim_customer AS 
+SELECT
+    ROW_NUMBER() OVER (ORDER BY customer_id) AS customer_key, -- Surrogate Key
+    customer_id,
+    first_name,
+    last_name,
+    CONCAT(first_name, ' ', last_name) AS full_name,
+    email,
+    phone,
+    city,
+    region,
+    customer_type,
+    registration_date,
+    NOW() AS load_date  -- Loading date
+FROM silver_customer_details_crm
+
+
+CREATE VIEW gold_dim_product AS
+SELECT
+	ROW_NUMBER() OVER (ORDER BY product_id) AS product_key,  -- Surrogate Key
+    product_id,
+    product_name,
+    category,
+    supplier,
+    unit_cost,
+    reorder_level,
+    stock_quantity,
+    NOW() AS load_date  -- Loading date
+FROM silver_products_erp
+
+
+CREATE VIEW gold_dim_employee AS
+SELECT
+	ROW_NUMBER() OVER (ORDER BY employee_id) AS employee_key,  -- Surrogate Key
+    employee_id,
+    first_name,
+    last_name,
+    CONCAT(first_name, ' ', last_name) AS full_name,
+    gender,
+    department,
+    job_title,
+    hire_date,
+    CAST(salary AS DECIMAL(12,2)) AS salary,
+    manager_id,
+    employment_status,
+    email,
+    NOW() AS load_date  -- Loading date
+FROM silver_employee_details_erp
+
+
+CREATE VIEW gold_fact_sales AS
+SELECT DISTINCT
+    o.order_id,
+    o.order_date,
+    -- Customer
+    c.customer_id,
+    CONCAT(c.first_name, ' ', c.last_name) AS customer_name,
+    c.customer_type,
+    c.city AS customer_city,
+    c.region AS customer_region,
+    -- Product
+    p.product_id,
+    p.product_name,
+    p.category,
+    p.supplier,
+    -- Order information
+    o.quantity,
+    o.unit_price,
+    COALESCE(o.discount_pct, 0) AS discount_pct,
+    o.payment_method,
+    o.order_status,
+    o.sales_channel,
+    -- Calculated measures
+    ROUND(o.quantity * o.unit_price, 2) AS gross_sales,
+	ROUND(o.quantity * o.unit_price * COALESCE(o.discount_pct, 0),2) AS discount_amount,
+	ROUND(o.quantity * o.unit_price * (1 - COALESCE(o.discount_pct, 0)),2) AS net_sales,
+    o.shipping_address,
+    o.order_note
+FROM silver_order_details_crm o
+LEFT JOIN silver_customer_details_crm c
+    ON o.customer_id = c.customer_id
+LEFT JOIN silver_products_erp p
+    ON o.product_name = p.product_name
+    
+
+
+CREATE VIEW gold_agg_sales_daily AS
+SELECT
+    DATE(order_date) AS sales_date,
+    category,
+    sales_channel,
+    COUNT(DISTINCT order_id) AS total_orders,
+    SUM(quantity) AS total_quantity,
+    SUM(gross_sales) AS gross_sales,
+    SUM(discount_amount) AS total_discount,
+    SUM(net_sales) AS net_sales,
+    SUM(net_sales) / NULLIF(COUNT(DISTINCT order_id), 0) AS average_order_value
+FROM gold_fact_sales
+GROUP BY
+    DATE(order_date),
+    category,
+    sales_channel
+
+
+
+
